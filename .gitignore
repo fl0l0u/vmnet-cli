@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+# proprietary VMware binaries / installers: never commit
+*.zip
+VMware-Workstation-*.exe
+VMware Workstation/
+analysis/*.out
+analysis/*.txt
+analysis/db.xml
+dist/
+build/
+*.egg-info/
+*.whl

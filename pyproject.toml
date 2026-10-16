@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vmnet-cli"
+version = "0.1.0"
+description = "Unofficial CLI clone of VMware Workstation's Virtual Network Editor (vmnetcfg.exe), built on the reverse-engineered vnetlib.dll VNL_* API"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "Apache-2.0"
+authors = [{name = "fl0l0u"}]
+keywords = ["vmware", "workstation", "vmnet", "vmnetcfg", "network", "cli"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: System Administrators",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: System :: Networking",
+]
+
+[project.optional-dependencies]
+dev = ["ruff>=0.4.0"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[project.scripts]
+vmnet-cli = "vmnet_cli.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/fl0l0u/vmnet-cli"
+Documentation = "https://github.com/fl0l0u/vmnet-cli#readme"
+Repository = "https://github.com/fl0l0u/vmnet-cli.git"
+Issues = "https://github.com/fl0l0u/vmnet-cli/issues"
+
+[tool.setuptools.packages.find]
+include = ["vmnet_cli*"]

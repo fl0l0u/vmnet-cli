@@ -1,0 +1,27 @@
+# Style reverse-engineered from the existing sources (4-space indent,
+# Stroustrup braces, left pointers, hand-aligned columns). The goal is that
+# clang-format is a NO-OP on this codebase except where a contributor's edit
+# drifts; hand-aligned blocks are guarded with clang-format off/on regions.
+# SortIncludes MUST stay false: winsock2.h before windows.h is an ABI-order
+# requirement, not cosmetics.
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 100
+BreakBeforeBraces: Stroustrup
+# NOTE: clang-format >= 20 changed PointerAlignment semantics; this config is
+# pinned for clang-format 23.1 (`pip install clang-format==23.1.*` in the CI
+# lint job — do not use apt's older build, its semantics differ).
+PointerAlignment: Right
+ReferenceAlignment: Pointer
+SortIncludes: false
+ReflowComments: false
+Cpp11BracedListStyle: false
+AllowShortIfStatementsOnASingleLine: OnlyFirstIf
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 2
+SpacesBeforeTrailingComments: 1
+AlignTrailingComments: false
+AlignConsecutiveDeclarations: false
+AllowAllParametersOfDeclarationOnNextLine: true

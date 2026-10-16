@@ -1,0 +1,115 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install linters (versions pinned to .clang-format semantics)
+        run: pip install "clang-format==23.1.*" cppcheck ruff semgrep flawfinder bandit vulture codespell
+      - name: clang-format check
+        run: clang-format --dry-run -Werror $(git ls-files '*.c' '*.h')
+      - name: cppcheck
+        run: cppcheck --error-exitcode=1 --enable=warning,style,portability
+                       --language=c --std=c11 -Isrc src/*.c
+      - name: flawfinder (C security linter)
+        run: flawfinder --minlevel=4 src/ --exclude=src/util.c
+      - name: semgrep
+        run: semgrep scan --error --quiet --config p/default --config p/security-audit src vmnet_cli
+      - name: bandit (Python security linter)
+        # B104 (bind 0.0.0.0) is meaningless here: no server code exists;
+        # the literal appears only as adversarial fuzz input.
+        run: bandit -q -r -ll --skip B104 vmnet_cli tools tests
+      - name: vulture (dead code)
+        run: vulture --min-confidence 90 vmnet_cli
+      - name: codespell
+        run: codespell src vmnet_cli tools tests RECON.md README.md
+      - name: ruff
+        run: |
+          ruff check vmnet_cli tools tests
+          ruff format --check vmnet_cli tools tests
+
+  build-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist + wheel
+        run: |
+          python -m pip install --upgrade build
+          python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-package
+          path: dist/
+
+  build-exe:
+    # Cross-compile the native C implementation to a self-contained x64 PE
+    # with MinGW-w64 — same toolchain and flags as the reference build.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MinGW-w64
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends mingw-w64
+      - name: Compile vmnet-cli.exe
+        run: |
+          V=$(python3 -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          IFS='.' read -r MA MI PA <<< "$V"
+          x86_64-w64-mingw32-gcc -O2 -s -static -Wall -Isrc \
+            -DVER_MAJOR=$MA -DVER_MINOR=$MI -DVER_PATCH=$PA \
+            -Wl,--no-insert-timestamp \
+            -o vmnet-cli-windows-x64.exe src/*.c src/version.rc \
+            -ladvapi32 -liphlpapi -lsetupapi
+          file vmnet-cli-windows-x64.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-executable
+          path: vmnet-cli-windows-x64.exe
+
+  release:
+    needs: [build-python, build-exe]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write        # sigstore: keyless signing via OIDC
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
+      - name: Sign release assets (sigstore keyless)
+        uses: sigstore/gh-action-sigstore-python@v3
+        with:
+          release-signing-artifacts: true
+
+  publish-pypi:
+    # Trusted publishing to PyPI (configure the PyPI project + this repo as
+    # its publisher under "Publishing" on pypi.org). Tag pushes only.
+    needs: build-python
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-package
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
