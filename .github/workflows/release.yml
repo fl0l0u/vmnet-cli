@@ -27,7 +27,9 @@ jobs:
       - name: Install linters (versions pinned to .clang-format semantics)
         run: pip install "clang-format==23.1.*" cppcheck ruff semgrep flawfinder bandit vulture codespell
       - name: clang-format check
-        run: clang-format --dry-run -Werror $(git ls-files '*.c' '*.h')
+        # src/ only: legacy/ holds the frozen single-file ports, not maintained
+        # to house style (every other linter in this job also targets src/ only)
+        run: clang-format --dry-run -Werror $(git ls-files 'src/*.c' 'src/*.h')
       - name: cppcheck
         run: cppcheck --error-exitcode=1 --enable=warning,style,portability
                        --language=c --std=c11 -Isrc src/*.c
@@ -77,14 +79,14 @@ jobs:
           V=$(python3 -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
           IFS='.' read -r MA MI PA <<< "$V"
           # Debian's mingw gcc does not recognize .rc suffixes (passes them
-          # to ld -> syntax error); compile the resource explicitly, as the
-          # reference build on the test box does
+          # to ld -> syntax error) and its .res output is not accepted by
+          # that ld either; emit a linkable COFF object explicitly
           x86_64-w64-mingw32-windres -DVER_MAJOR=$MA -DVER_MINOR=$MI -DVER_PATCH=$PA \
-            -i src/version.rc -o version.res
+            -O coff -i src/version.rc -o version.o
           x86_64-w64-mingw32-gcc -O2 -s -static -Wall -Isrc \
             -DVER_MAJOR=$MA -DVER_MINOR=$MI -DVER_PATCH=$PA \
             -Wl,--no-insert-timestamp \
-            -o vmnet-cli-windows-x64.exe src/*.c version.res \
+            -o vmnet-cli-windows-x64.exe src/*.c version.o \
             -ladvapi32 -liphlpapi -lsetupapi
           file vmnet-cli-windows-x64.exe
       - uses: actions/upload-artifact@v4
