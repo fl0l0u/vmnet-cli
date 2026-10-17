@@ -113,7 +113,8 @@ jobs:
           files: artifacts/*
           generate_release_notes: true
       - name: Sign release assets (sigstore keyless)
-        uses: sigstore/gh-action-sigstore-python@v2
+        # pinned exact: this repo publishes no moving major tags (v2/v3 404)
+        uses: sigstore/gh-action-sigstore-python@v3.5.0
         with:
           release-signing-artifacts: true
 
@@ -133,3 +134,8 @@ jobs:
           name: python-package
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+        # idempotent re-runs: v0.1.0 may already be on PyPI, and duplicate
+        # uploads are a hard 400 otherwise (proven: first release run
+        # published fine but the release job failed on a bad action ref)
+        with:
+          skip-existing: true
