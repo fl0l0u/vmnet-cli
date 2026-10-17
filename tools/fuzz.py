@@ -48,7 +48,7 @@ def ps_arg(a):
     esc = a.replace("'", "''")
     if len(esc) <= 800:
         return f"'{esc}'"
-    return "(" + "+".join(f"'{esc[i:i + 800]}'" for i in range(0, len(esc), 800)) + ")"
+    return "(" + "+".join(f"'{esc[i : i + 800]}'" for i in range(0, len(esc), 800)) + ")"
 
 
 def run(args, tries=3):
