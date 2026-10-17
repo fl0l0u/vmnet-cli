@@ -95,12 +95,15 @@ jobs:
           path: vmnet-cli-windows-x64.exe
 
   release:
+    # tag pushes only — on branch pushes there is nothing to release
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: [build-python, build-exe]
     runs-on: ubuntu-latest
     permissions:
       contents: write
       id-token: write        # sigstore: keyless signing via OIDC
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: artifacts/
@@ -110,7 +113,7 @@ jobs:
           files: artifacts/*
           generate_release_notes: true
       - name: Sign release assets (sigstore keyless)
-        uses: sigstore/gh-action-sigstore-python@v3
+        uses: sigstore/gh-action-sigstore-python@v2
         with:
           release-signing-artifacts: true
 
