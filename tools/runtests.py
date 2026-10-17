@@ -26,10 +26,9 @@ import time
 import winrm
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# nosec B108: fixed state dir for the local dev harness on the operator's
-# workstation (/tmp/opencode is the approved scratch root there); this file
-# is tooling, not shipped package code.
-STATE = "/tmp/opencode/runtests"
+# /tmp/opencode is the approved scratch root on the operator's workstation;
+# this file is dev harness tooling, not shipped package code.
+STATE = "/tmp/opencode/runtests"  # nosec B108
 os.makedirs(STATE, exist_ok=True)
 STATUS = os.path.join(STATE, "status.json")
 
