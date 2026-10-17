@@ -14,10 +14,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # full history, so gitleaks can scan every commit
-      - name: Secret scan (history)
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Secret scan (full history)
+        # explicit CLI instead of gitleaks-action: the action scans the
+        # push range base..head, and on the first push base=root^ does not
+        # exist -> "failed to scan" with zero leaks found (proven in CI)
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz | tar xz
+          ./gitleaks detect --source . --redact --log-opts=--no-merges
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -73,10 +76,15 @@ jobs:
         run: |
           V=$(python3 -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
           IFS='.' read -r MA MI PA <<< "$V"
+          # Debian's mingw gcc does not recognize .rc suffixes (passes them
+          # to ld -> syntax error); compile the resource explicitly, as the
+          # reference build on the test box does
+          x86_64-w64-mingw32-windres -DVER_MAJOR=$MA -DVER_MINOR=$MI -DVER_PATCH=$PA \
+            -i src/version.rc -o version.res
           x86_64-w64-mingw32-gcc -O2 -s -static -Wall -Isrc \
             -DVER_MAJOR=$MA -DVER_MINOR=$MI -DVER_PATCH=$PA \
             -Wl,--no-insert-timestamp \
-            -o vmnet-cli-windows-x64.exe src/*.c src/version.rc \
+            -o vmnet-cli-windows-x64.exe src/*.c version.res \
             -ladvapi32 -liphlpapi -lsetupapi
           file vmnet-cli-windows-x64.exe
       - uses: actions/upload-artifact@v4
