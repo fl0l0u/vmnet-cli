@@ -182,13 +182,44 @@ int vnet_in_use(int n)
 }
 
 
+/* does vmnetnat.conf currently render `device = <vnet>`? */
+static int conf_device_is(const char *vnet)
+{
+    FILE *f = fopen("C:\\ProgramData\\VMware\\vmnetnat.conf", "r");
+    if (!f) return 0;
+    char line[256], dev[64] = "";
+    while (fgets(line, sizeof line, f))
+        sscanf(line, " device = %63s", dev);
+    fclose(f);
+    return !strcmp(dev, vnet);
+}
+
+
 void regen_nat_conf(void)
 {
     char v[64];
-    for (int n = 2; n < vnet_count(); n++) {
+    int cnt = vnet_count();
+    if (cnt < 0 || cnt > 256) cnt = 256; /* never trust a wild bound mid-loop */
+    int last = -1;
+    for (int n = 2; n < cnt; n++) {
         vnetstr(n, v);
         int f = features(v);
-        if (reg_flag(v, "NAT") || (f > 0 && (f & 0x10000))) v1("VNL_UpdateNATFromConfig", v);
+        if (reg_flag(v, "NAT") || (f > 0 && (f & 0x10000))) {
+            v1("VNL_UpdateNATFromConfig", v);
+            last = n;
+        }
+    }
+    /* UpdateNATFromConfig rewrites the WHOLE file: the last vnet processed
+       wins, but vnetlib intermittently no-ops the call (internal-lock
+       serialization, rc ignored) and leaves the conf rendering a removed
+       vnet — proven live. Verify the final render; retry it if stale. */
+    if (last >= 0) {
+        vnetstr(last, v);
+        for (int t = 0; t < 3 && !conf_device_is(v); t++) {
+            sleep_ms(1000);
+            v1("VNL_UpdateNATFromConfig", v);
+        }
+        if (!conf_device_is(v)) fprintf(stderr, "warning: vmnetnat.conf stale after regen\n");
     }
 }
 

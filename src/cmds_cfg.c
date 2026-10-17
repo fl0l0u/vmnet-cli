@@ -58,7 +58,8 @@ void copy_tree(HKEY src, HKEY dst)
         if (RegEnumKeyExW(src, i, sub, &sl, NULL, NULL, NULL, NULL)) break;
         HKEY s, d;
         if (RegOpenKeyExW(src, sub, 0, KEY_READ, &s)) continue;
-        if (RegCreateKeyExW(dst, sub, 0, NULL, 0, KEY_WRITE, NULL, &d, NULL)) {
+        if (RegCreateKeyExW(dst, sub, 0, NULL, 0, KEY_WRITE | KEY_ENUMERATE_SUB_KEYS, NULL, &d,
+                            NULL)) {
             RegCloseKey(s);
             continue;
         }
@@ -66,33 +67,32 @@ void copy_tree(HKEY src, HKEY dst)
         RegCloseKey(d);
         RegCloseKey(s);
     }
-    WCHAR last[256] = L"";
-    for (int i = 0;;) { /* prune dst children absent from src */
-        WCHAR sub[256];
-        DWORD sl = sizeof sub / 2;
-        LONG er = RegEnumKeyExW(dst, i, sub, &sl, NULL, NULL, NULL, NULL);
-        if (er == ERROR_NO_MORE_ITEMS) break;
-        if (er) {
-            i++;
-            continue;
-        }
-        HKEY t;
-        if (RegOpenKeyExW(src, sub, 0, KEY_READ, &t)) {
-            if (RegDeleteTreeW(dst, sub)) i++; /* locked: warn, move on */
-            else if (lstrcmpW(sub, last) == 0)
-                i++; /* delete "succeeded" but the key is PENDING-DELETE
-                           (a service holds a handle): it stays enumerated —
-                           advance or we spin forever (proven live) */
-            else {
-                lstrcpyW(last, sub);
-                fprintf(stderr, "warning: pruned stale key beyond hive\n");
-            }
-        }
-        else {
-            RegCloseKey(t);
-            i++;
-        }
+    /* Prune dst children absent from src. Two-phase on purpose: deleting
+       while enumerating the same handle leaves the enumeration state
+       undefined — with pending-delete keys (services holding handles right
+       after a restart) it then returns errors forever and never reaches
+       NO_MORE_ITEMS: the old interleaved loop spun at 100% CPU for hours,
+       proven live twice (import caught red-handed in the suite). */
+    WCHAR(*names)[256] = xmalloc(512 * sizeof *names);
+    int cnt = 0;
+    for (int i = 0; i < 512; i++) { /* collect, no mutation */
+        DWORD sl = 256;
+        LONG er = RegEnumKeyExW(dst, i, names[cnt], &sl, NULL, NULL, NULL, NULL);
+        if (er) break; /* NO_MORE_ITEMS = done; other = give up pruning here */
+        cnt++;
     }
+    for (int i = 0; i < cnt; i++) { /* then delete */
+        HKEY t;
+        if (RegOpenKeyExW(src, names[i], 0, KEY_READ, &t) == 0) {
+            RegCloseKey(t);
+            continue; /* present in src: merged above, keep */
+        }
+        LONG dr = RegDeleteTreeW(dst, names[i]);
+        if (dr) fprintf(stderr, "warning: prune rc=%ld (locked?)\n", dr);
+        else
+            fprintf(stderr, "warning: pruned stale key beyond hive\n");
+    }
+    free(names);
 }
 
 

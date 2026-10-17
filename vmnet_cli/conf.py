@@ -1,19 +1,51 @@
 # SPDX-License-Identifier: Apache-2.0
 """vmnet_cli.conf - see vmnet_cli.cli for the tool overview."""
 
+import re
+import sys
+import time
 import winreg
 
 from .registry import CFG, reg_flag
 from .vnl import VNetLib
 
 
+def _nat_conf_device():
+    """The `device = vmnetN` the current vmnetnat.conf renders (last wins)."""
+    dev = None
+    try:
+        with open(r"C:\ProgramData\VMware\vmnetnat.conf", errors="replace") as f:
+            for line in f:
+                m = re.match(r"\s*device\s*=\s*(\S+)", line)
+                if m:
+                    dev = m.group(1)
+    except OSError:
+        pass
+    return dev
+
+
 def regen_nat_conf(vl):
     """vmnetnat.conf has ONE [host] section; regenerate for every NAT vnet,
-    ascending, so the file stays consistent with config."""
+    ascending, so the file stays consistent with config. The LAST vnet wins
+    (each call rewrites the whole file) — but vnetlib intermittently no-ops
+    a call (internal-lock serialization), leaving the conf rendering a
+    removed vnet; verify the final render and retry it if stale."""
+    last = None
     for n in range(2, vl.count()):
         v = f"vmnet{n}"
         if reg_flag(v, "NAT") or (vl.features(v) or 0) & 0x10000:
             vl._c("VNL_UpdateNATFromConfig", v.encode())
+            last = v
+    if last:
+        for _ in range(3):
+            if _nat_conf_device() == last:
+                return
+            time.sleep(1)
+            vl._c("VNL_UpdateNATFromConfig", last.encode())
+        print(
+            f"warning: vmnetnat.conf still renders {_nat_conf_device()}, expected {last}",
+            file=sys.stderr,
+        )
 
 
 def ensure_nat(vnet, on):
