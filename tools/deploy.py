@@ -54,7 +54,9 @@ print("uploaded launcher")
 c.close()
 
 GCC = r"C:\Temp\mingw64\bin\gcc.exe"
+# windres invokes plain `gcc` as the .rc preprocessor -> bin dir must be on PATH
 cmd = (
+    "$env:Path = 'C:\\Temp\\mingw64\\bin;' + $env:Path; "
     f'cmd /c "{GCC} -O2 -s -Wall -IC:\\ludus\\src '
     f"-o C:\\ludus\\vmnet-cli.exe C:\\ludus\\src\\*.c C:\\ludus\\src\\version.rc "
     '-ladvapi32 -liphlpapi -lsetupapi 2>&1"; '

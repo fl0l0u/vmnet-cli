@@ -62,8 +62,8 @@ void cmd_list(void)
                 size_t l = strlen(extra);
                 if (l + 64 < sizeof extra) /* bounded; separator keys off
                                                 "first for THIS vnet", not index */
-                    snprintf(extra + l, sizeof extra - l, "%s%s",
-                             l ? "," : " pinned=", pins[i].guid);
+                    snprintf(extra + l, sizeof extra - l, "%s%.*s",
+                             l ? "," : " pinned=", (int)sizeof pins[i].guid - 1, pins[i].guid);
             }
         printf("vmnet%-2d %-40s name='%s' subnet=%s%s\n", n, bits, name, subnet, extra);
     }
@@ -252,8 +252,8 @@ void cmd_bridged(void)
     int nn = 0;
     for (int i = 0; i < n; i++) {
         if (ci_contains(nics[i].desc, "VMware")) continue;
-        if (nn < 64) snprintf(names[nn++], sizeof names[nn++], "%s", nics[i].name);
-        if (!strcmp(nics[i].name, adapter)) snprintf(guid, sizeof guid, "%s", nics[i].guid);
+        if (nn < 64) { snprintf(names[nn], sizeof names[0], "%.*s", (int)sizeof nics[i].name - 1, nics[i].name); nn++; }
+        if (!strcmp(nics[i].name, adapter)) snprintf(guid, sizeof guid, "%.*s", (int)sizeof nics[i].guid - 1, nics[i].guid);
     }
     if (!guid[0]) {
         for (int i = 1; i < nn; i++)           /* sorted listing */
@@ -408,7 +408,7 @@ void cmd_autobridge(int dry_run)
         changed = 1;
         if (!dry_run) {
             pins_set(nics[i].guid, seg);
-            if (np < 64) { snprintf(pins[np].guid, sizeof pins[np].guid, "%s", nics[i].guid); pins[np++].vnet = seg; }
+            if (np < 64) { snprintf(pins[np].guid, sizeof pins[np].guid, "%.*s", (int)sizeof nics[i].guid - 1, nics[i].guid); pins[np++].vnet = seg; }
             set_str("VNL_SetVnetDisplayName", v, want);
             v1i("VNL_SetVnetUseDHCP", v, 0);
             v1i("VNL_SetVnetUseNAT", v, 0);

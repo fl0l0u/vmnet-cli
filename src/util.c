@@ -144,7 +144,7 @@ void require_elevated(void)
     PSID adm;
     BOOL is = FALSE;
     if (AllocateAndInitializeSid(&nt, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS, 0, 0,
-                                 0, 0, &adm)) {
+                                 0, 0, 0, 0, &adm)) {
         CheckTokenMembership(NULL, adm, &is);
         FreeSid(adm);
     }

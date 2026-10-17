@@ -66,6 +66,7 @@ void copy_tree(HKEY src, HKEY dst)
         RegCloseKey(d);
         RegCloseKey(s);
     }
+    WCHAR last[256] = L"";
     for (int i = 0;;) { /* prune dst children absent from src */
         WCHAR sub[256];
         DWORD sl = sizeof sub / 2;
@@ -78,8 +79,14 @@ void copy_tree(HKEY src, HKEY dst)
         HKEY t;
         if (RegOpenKeyExW(src, sub, 0, KEY_READ, &t)) {
             if (RegDeleteTreeW(dst, sub)) i++; /* locked: warn, move on */
-            else
+            else if (lstrcmpW(sub, last) == 0)
+                i++; /* delete "succeeded" but the key is PENDING-DELETE
+                           (a service holds a handle): it stays enumerated —
+                           advance or we spin forever (proven live) */
+            else {
+                lstrcpyW(last, sub);
                 fprintf(stderr, "warning: pruned stale key beyond hive\n");
+            }
         }
         else {
             RegCloseKey(t);
@@ -152,7 +159,7 @@ void cmd_natfw(const char *action)
             char names[64][32], vals[64][128];
             int nv = 0;
             for (int i = 0;; i++) {
-                char nm[64], tmp[128]; /* enum into scratch: RegEnumValue
+                char nm[32], tmp[128]; /* enum into scratch: RegEnumValue
                                                         writes BEFORE any filter check */
                 DWORD nl = sizeof nm, t, vl = sizeof tmp;
                 LONG er = RegEnumValueA(k, i, nm, &nl, NULL, &t, (BYTE *)tmp, &vl);
@@ -177,9 +184,10 @@ void cmd_natfw(const char *action)
                     snprintf(vals[j - 1], sizeof vals[j - 1], "%s", u);
                 }
             for (int i = 0; i < nv; i++) {
-                char dpath[280], dname[80];
+                char dpath[280], dname[96];
                 snprintf(dpath, sizeof dpath, "%s\\%s\\NAT\\%s", CFG, v, subs[s]);
-                snprintf(dname, sizeof dname, "%sDescription", names[i]);
+                snprintf(dname, sizeof dname, "%.*sDescription", (int)sizeof names[0] - 1,
+                         names[i]);
                 char desc[128] = "";
                 DWORD dt, dsz = sizeof desc;
                 HKEY dk;
