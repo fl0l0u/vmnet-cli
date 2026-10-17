@@ -118,12 +118,13 @@ jobs:
           release-signing-artifacts: true
 
   publish-pypi:
-    # Trusted publishing to PyPI (configure the PyPI project + this repo as
-    # its publisher under "Publishing" on pypi.org). Tag pushes only.
+    # Trusted publishing to PyPI (publisher: owner fl0l0u, repo vmnet-cli,
+    # workflow release.yml, environment BLANK - must stay in sync with the
+    # PyPI config: a job environment here would add an environment_name
+    # claim that a blank publisher does not match)
     needs: build-python
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    environment: pypi
     permissions:
       id-token: write
     steps:
