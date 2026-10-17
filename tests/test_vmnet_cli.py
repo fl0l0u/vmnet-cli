@@ -152,6 +152,7 @@ def main():
     print(f"target: {BOX}  tool: {CLI}\n", flush=True)
 
     # -- baseline ----------------------------------------------------------
+    cleanup()  # a previously aborted run may have left test vnets behind
     st = list_state()
     check("T01 baseline: vmnet0 bridged present", 0 in st and "bridged" in st[0]["bits"], st)
     check(
