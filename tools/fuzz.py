@@ -37,9 +37,23 @@ else:
     EXE, PRE = r"C:\Temp\py\python.exe", [r"C:\ludus\vmnet-cli.py"]
 
 
+def ps_arg(a):
+    """Embed an arg in a PS command WITHOUT blowing the ~4000-char WinRM
+    command limit: repeated chars become `'c' * N`, long arbitrary values
+    become chunked concatenations (a 5000-char literal once killed the
+    shell itself - fuzz mistook that transport failure for a PE hang)."""
+    m = re.fullmatch(r"(.)\1{19,}", a)
+    if m:
+        return f"('{m.group(1).replace(chr(39), chr(39) * 2)}' * {len(a)})"
+    esc = a.replace("'", "''")
+    if len(esc) <= 800:
+        return f"'{esc}'"
+    return "(" + "+".join(f"'{esc[i:i + 800]}'" for i in range(0, len(esc), 800)) + ")"
+
+
 def run(args, tries=3):
     ps_args = (PRE or []) + list(args)
-    arr = "@(" + ",".join("'" + a.replace("'", "''") + "'" for a in ps_args) + ")"
+    arr = "@(" + ",".join(ps_arg(a) for a in ps_args) + ")"
     cmd = f"$ErrorActionPreference='Continue'; $a={arr}; & {EXE} @a 2>&1 | Out-String; 'rc=' + $LASTEXITCODE"
     last = None
     for _ in range(tries):  # WinRM flakes (HTTP 500) are transient
