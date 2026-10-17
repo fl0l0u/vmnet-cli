@@ -108,15 +108,19 @@ jobs:
         with:
           path: artifacts/
           merge-multiple: true
+      - name: Sign release assets (sigstore keyless)
+        # pinned exact: this repo publishes no moving major tags (v2/v3 404)
+        # NOTE: this run's event is a tag 'push', not 'release', so
+        # release-signing-artifacts mode cannot see the (not yet created)
+        # release -> sign explicit inputs; softprops then uploads the
+        # produced .sig/.crt files alongside the artifacts
+        uses: sigstore/gh-action-sigstore-python@v3.5.0
+        with:
+          inputs: ./artifacts/*
       - uses: softprops/action-gh-release@v2
         with:
           files: artifacts/*
           generate_release_notes: true
-      - name: Sign release assets (sigstore keyless)
-        # pinned exact: this repo publishes no moving major tags (v2/v3 404)
-        uses: sigstore/gh-action-sigstore-python@v3.5.0
-        with:
-          release-signing-artifacts: true
 
   publish-pypi:
     # Trusted publishing to PyPI (publisher: owner fl0l0u, repo vmnet-cli,
