@@ -54,7 +54,9 @@ def main():
     script = os.path.join(ROOT, "tests/test_vmnet_cli.py" if mode == "suite" else "tools/fuzz.py")
     log = os.path.join(STATE, f"{mode}-{tool}.log")
 
-    env = dict(os.environ, VMNET_TOOL=tool)
+    # PYTHONUNBUFFERED: a block-buffered child never grows the log file
+    # (8KB chunks) and would trigger a false stall abort (proven: fuzz run)
+    env = dict(os.environ, VMNET_TOOL=tool, PYTHONUNBUFFERED="1")
     child = subprocess.Popen(
         [sys.executable, script] + ([tool] if mode == "fuzz" else []),
         cwd=ROOT,
