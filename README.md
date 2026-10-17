@@ -8,13 +8,13 @@
 
 <p align="center">
   <a href="https://github.com/fl0l0u/vmnet-cli/releases/latest">
-    <img src="https://img.shields.io/github/v/release/fl0l0u/vmnet-cli?style=flat-square&label=release&color=green" alt="Release">
+    <img src="https://img.shields.io/github/v/release/fl0l0u/vmnet-cli?style=flat-square&label=release&color=green&cacheSeconds=3600" alt="Release">
   </a>
   <a href="https://pypi.org/project/vmnet-cli/">
-    <img src="https://img.shields.io/pypi/v/vmnet-cli?style=flat-square&color=blue" alt="PyPI">
+    <img src="https://img.shields.io/pypi/v/vmnet-cli?style=flat-square&color=blue&cacheSeconds=3600" alt="PyPI">
   </a>
   <a href="https://pypi.org/project/vmnet-cli/">
-    <img src="https://img.shields.io/pypi/pyversions/vmnet-cli?style=flat-square" alt="Python Version">
+    <img src="https://img.shields.io/pypi/pyversions/vmnet-cli?style=flat-square&cacheSeconds=3600" alt="Python Version">
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square" alt="License">
